@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>井下人员定位安全系统 · 调度大屏</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <div>
+        <h1>井下人员定位安全系统</h1>
+        <div class="sub">UWB 实时定位 · 电子围栏 · 静止监测 · 应急广播联动</div>
+      </div>
+    </div>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="st-underground">–</b><span>井下人数</span></div>
+      <div class="stat"><b id="st-offline">–</b><span>信号丢失</span></div>
+      <div class="stat danger"><b id="st-danger">0</b><span>高危告警</span></div>
+      <div class="stat warn"><b id="st-active">0</b><span>活动告警</span></div>
+      <div class="clock"><b id="st-clock">--:--:--</b><span id="st-date">----</span></div>
+    </div>
+  </header>
+
+  <div id="alarm-banner" class="alarm-banner hidden"></div>
+
+  <main class="layout">
+    <!-- 左：人员列表 -->
+    <aside class="panel people-panel">
+      <div class="panel-h"><h2>井下人员</h2><span class="link" id="find-offline">只看异常</span></div>
+      <div class="people-list" id="people-list"></div>
+    </aside>
+
+    <!-- 中：地图 -->
+    <section class="map-wrap">
+      <div class="map-toolbar">
+        <div class="scenarios">
+          <span class="tb-label">演示场景：</span>
+          <button class="btn" data-scenario="normal">正常巡走</button>
+          <button class="btn danger" data-scenario="intrusion">闯入采空区</button>
+          <button class="btn warn" data-scenario="still">长时静止</button>
+        </div>
+        <div class="tools">
+          <label class="switch"><input type="checkbox" id="sound-on" checked /> 语音/警笛</label>
+        </div>
+      </div>
+      <canvas id="map"></canvas>
+      <div id="tag-pop" class="tag-pop hidden"></div>
+      <div class="map-legend" id="zone-legend"></div>
+      <div class="map-foot">
+        <span id="sim-state">模拟源：–</span>
+        <span id="uwb-state">UWB：–</span>
+        <span id="sse-state" class="ok">实时连接中</span>
+      </div>
+    </section>
+
+    <!-- 右：告警与广播 -->
+    <aside class="panel side-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="alarms">告警 <em id="tab-alarm-n">0</em></button>
+        <button class="tab" data-tab="broadcasts">广播记录</button>
+      </div>
+      <div class="tab-body" id="tab-alarms">
+        <div class="alarm-list" id="alarm-list"></div>
+      </div>
+      <div class="tab-body hidden" id="tab-broadcasts">
+        <div class="alarm-list" id="broadcast-list"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 人员详情弹层 -->
+  <div id="tag-pop" class="tag-pop hidden"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "mine-safety-positioning",
+  "version": "1.0.0",
+  "private": true,
+  "description": "井下人员定位安全系统：UWB 定位、危险区域电子围栏、长时静止告警、应急广播联动",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
