@@ -1,0 +1,86 @@
+:root {
+  --bg-dark: #0b1220;
+  --panel: #111c2e;
+  --panel-2: #17243a;
+  --line: #243650;
+  --text-main: #e6edf7;
+  --text-dim: #8ea3c0;
+  --ok: #35d399;
+  --warn: #f5a524;
+  --danger: #f2495c;
+  --info: #4ea8ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-main);
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.status-active {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+.status-stationary {
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+}
+.status-offline {
+  background: #64748b;
+}
+
+/* Element Plus 暗色微调 */
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--panel-2);
+  --el-table-border-color: var(--line);
+  --el-table-text-color: var(--text-main);
+  --el-table-header-text-color: var(--text-dim);
+  --el-table-row-hover-bg-color: rgba(78, 168, 255, 0.08);
+}
+
+.el-card {
+  --el-card-bg-color: var(--panel);
+  --el-card-border-color: var(--line);
+  color: var(--text-main);
+}
+
+.mono {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}

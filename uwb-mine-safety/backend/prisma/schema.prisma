@@ -1,0 +1,211 @@
+// 井下人员定位安全系统 数据模型
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin // 系统管理员
+  dispatcher // 调度员：确认/解除告警、发起广播
+  viewer // 只看大屏
+}
+
+enum PersonStatus {
+  active
+  stationary
+  offline
+}
+
+enum ZoneLevel {
+  restricted // 禁止进入
+  warning // 谨慎进入
+  safe // 安全区域（仅展示）
+}
+
+enum AlarmType {
+  zone_intrusion
+  stationary
+  sos
+  low_battery
+  offline
+}
+
+enum AlarmSeverity {
+  info
+  warning
+  critical
+}
+
+enum AlarmStatus {
+  active
+  acked
+  resolved
+}
+
+enum BroadcastStatus {
+  pending
+  sent
+  failed
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         Role     @default(viewer)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  ackedAlarms  Alarm[]  @relation("AlarmAckedBy")
+  broadcasts   Broadcast[]
+}
+
+/// 井下人员（与 UWB 标签一一对应）
+model Person {
+  tagId        String       @unique // UWB 标签硬件 ID，定位上报以此匹配
+  name         String
+  employeeNo   String?      @unique
+  jobTitle     String?
+  team         String? // 班组/区队
+  phone        String?
+  photoUrl     String?
+  batteryPct   Int?
+  status       PersonStatus @default(offline)
+  isDeleted    Boolean      @default(false)
+  lastSeenAt   DateTime?
+  lastPos      Json? // { x,y,z } 最新位置
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  positions    Position[]
+  alarms       Alarm[]
+}
+
+/// UWB 定位基站
+model Anchor {
+  id          String   @id @default(uuid())
+  code        String   @unique // 基站编号
+  name        String
+  x           Float
+  y           Float
+  z           Float    @default(0)
+  zoneId      String?
+  zone        Zone?    @relation(fields: [zoneId], references: [id])
+  isOnline    Boolean  @default(false)
+  lastSeenAt  DateTime?
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 电子围栏区域
+model Zone {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  name          String
+  level         ZoneLevel @default(restricted)
+  /// 多边形顶点 [{x,y},...]，矿井局部坐标（米）
+  polygon       Json
+  /// 区域所在水平，跨层告警没有意义
+  floor         Float     @default(0)
+  /// 进入该区域时播报的分组（音箱组 ID，逗号约定由广播服务解释；为空表示全矿广播）
+  speakerGroup  String?
+  /// TTS 播报模板，{name} {team} {zone} 会被替换
+  broadcastTpl  String?
+  /// 是否对闯入做静止豁免之类的高级开关，先保留：区域是否启用
+  isActive      Boolean   @default(true)
+  remark        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  anchors       Anchor[]
+  alarms        Alarm[]
+}
+
+/// 定位原始/快照数据（批量写入，量大，独立表）
+model Position {
+  id         BigInt @id @default(autoincrement())
+  personId   String
+  tagId      String
+  x          Float
+  y          Float
+  z          Float
+  batteryPct Int?
+  /// 标签测量时间，而非入库时间
+  measuredAt DateTime
+  createdAt  DateTime @default(now())
+
+  person Person @relation(fields: [personId], references: [tagId])
+
+  @@index([personId, measuredAt])
+  @@index([measuredAt])
+}
+
+/// 告警
+model Alarm {
+  id           String        @id @default(uuid())
+  type         AlarmType
+  severity     AlarmSeverity
+  status       AlarmStatus   @default(active)
+  personId     String
+  person       Person        @relation(fields: [personId], references: [tagId])
+  zoneId       String?
+  zone         Zone?         @relation(fields: [zoneId], references: [id])
+  /// 去重键，如 zone_intrusion:person-id:zone-id / stationary:person-id
+  dedupKey     String
+  /// 触发时的位置与上下文
+  position     Json?
+  message      String
+  repeatCount  Int           @default(1)
+  /// 最近一次重复触发的时刻（抑制窗口判断）
+  lastFiredAt  DateTime      @default(now())
+  firstFiredAt DateTime      @default(now())
+  ackedById    String?
+  ackedBy      User?         @relation("AlarmAckedBy", fields: [ackedById], references: [id])
+  ackedAt      DateTime?
+  resolvedAt   DateTime?
+  resolveNote  String?
+  escalatedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  broadcasts   Broadcast[]
+
+  // 注意：dedupKey 只允许存在一条未解除告警，这是部分唯一索引
+  // (status <> 'resolved')，Prisma schema 表达不了，见迁移 SQL，勿用 migrate diff 覆盖。
+  @@index([dedupKey, status])
+  @@index([status, severity])
+  @@index([personId, createdAt])
+}
+
+/// 广播记录
+model Broadcast {
+  id          String          @id @default(uuid())
+  alarmId     String?
+  alarm       Alarm?          @relation(fields: [alarmId], references: [id])
+  /// manual=调度员手动广播；auto=告警联动
+  triggerType String          @default("auto")
+  targetGroup String?
+  content     String
+  status      BroadcastStatus @default(pending)
+  error       String?
+  sentAt      DateTime?
+  createdById String?
+  createdBy   User?           @relation(fields: [createdById], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([alarmId])
+}
+
+/// 设备接入凭证（UWB 网关/定位引擎调用 ingest 接口）
+model IngestKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+}

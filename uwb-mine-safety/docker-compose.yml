@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: uwb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: uwb_mine
+      TZ: Asia/Shanghai
+    ports:
+      - "5433:5432"
+    volumes:
+      - uwb_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d uwb_mine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: uwb-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_PORT: 3000
+      APP_BASE_URL: http://localhost:3000
+      FRONTEND_BASE_URL: http://localhost:8080
+      DATABASE_URL: postgresql://app:app@postgres:5432/uwb_mine?schema=public
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-32chars}
+      BROADCAST_DRIVER: console
+      TZ: Asia/Shanghai
+    ports:
+      - "3000:3000"
+    command: sh -c "npx prisma migrate deploy && node dist/scripts/seed.js && node dist/server.js"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: uwb-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://app:app@postgres:5432/uwb_mine?schema=public
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-32chars}
+      BROADCAST_DRIVER: console
+      TZ: Asia/Shanghai
+    command: sh -c "npx prisma migrate deploy && node dist/worker.js"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: uwb-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  uwb_pgdata:
